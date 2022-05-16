@@ -1,0 +1,38 @@
+# Usage:
+# - extend the `git:push` job
+# - set the variables for the job
+#   - APP_REPO: string
+#   - COMMIT_MESSAGE: string
+
+git:push:
+  variables:
+    APP_DIR: /k8s-app
+  image:
+    name: izderadicka/git-kustomize
+    entrypoint: ['']
+  before_script:
+    # Clone the repository via HTTPS inside a new directory
+    - git clone "https://CI_ROBOT:${CI_ROBOT_TOKEN}@${CI_SERVER_HOST}/${APP_REPO}.git" "$APP_DIR"
+    - cd "${APP_DIR}"
+    # Set the displayed user with the commits that are about to be made
+    - git config --global user.name "${GIT_USER_NAME:-$GITLAB_USER_NAME}"
+    - git config --global user.email "${GIT_USER_EMAIL:-$GITLAB_USER_EMAIL}"
+
+  after_script:
+    - cd "${APP_DIR}"
+    - git add .
+
+    - |-
+      # Check if we have modifications to commit
+      CHANGES=$(git status --porcelain | wc -l)
+
+      if [ "$CHANGES" -gt "0" ]; then
+        # Show the status of files that are about to be created, updated or deleted
+        git status
+
+        # Commit all changes
+        git commit -m "${COMMIT_MESSAGE}"
+        git push
+      else
+        echo "Nothing to commit"
+ 
